@@ -9,35 +9,75 @@ from itertools import chain, repeat
 import networkx as nx
 import math
 from box import Box
-def solve(c):
-    # c.A, c.B
+from sympy.solvers.diophantine import diophantine
+from sympy.abc import a,b
+from sympy import symbols, Eq, solve
+from sympy.parsing.sympy_parser import parse_expr
+from scipy.optimize import milp, LinearConstraint
+from scipy.sparse import csc_matrix
+def msolve(c):
+    TT = 10000000000000
+    A_eq = csc_matrix([[c.A.x, c.B.x], [c.A.y, c.B.y]])
+    b_eq = np.array([c.P.x + TT, c.P.y + TT])
+    cc = [0, 0]
+    constraints = LinearConstraint(A_eq, b_eq, b_eq)
+    res = milp(c=cc, constraints=constraints, integrality=[3, 3], options={'presolve':False} )
 
-    xsteps = 100 #max(c.P.x // c.A.x, c.P.x // c.B.x)
-    ysteps = 100 #max(c.P.y // c.A.y, c.P.y // c.B.y)
-
-    C = []
-    cost = 0
-    for x in range(xsteps):
-        r = []
-        for y in range(ysteps):
-            if ((x * c.A.x + y * c.B.x) == c.P.x) and ((x * c.A.y + y * c.B.y) == c.P.y):
-                print(f"{c.P=}, {x,y}, {(3*x) + y}")
-                return (3*x) + y
-            r.append((3*x) + y)
-        C.append(r)
-    return 0
-    # minC = deepcopy(C)
-    # minC[0][0] = C[0][0]
+    if res.success:
+        x, y = res.x
+        return int(x), int(y)
+    else:
+        return 0, 0
+    # # c.A, c.B
+    # #t_0 = symbols('t_0')
+    # x = symbols('x')
+    # TT = 10000000000000
+    # dx = diophantine((c.A.x*a) + (c.B.x*b) - (c.P.x + TT))
+    # dy = diophantine((c.A.y * a) + (c.B.y * b) - (c.P.y + TT))
     #
-    # # for j in range(1, ysteps):
-    # #     minC[0][j] = minC[0][j - 1] + C[0][j]
-    # #
-    # # for i in range(1, xsteps):
-    # #     minC[i][0] = minC[i-1][0] + C[i][0]
+    # sols_x = list(dx)
+    # sols_y = list(dy)
+    # print(sols_x, sols_y)
     #
-    # for i in range(1, xsteps):
-    #     for j in range(1, ysteps):
-    #         minC[i][j] = min(minC[i-1][j], minC[i][j-1]) + C[i][j]
+    # if len(sols_x) > 0:
+    #     ax, ay = sols_x[0]
+    #
+    #     aeq = Eq(
+    #         parse_expr(str(ax).replace("t_0", "x")),
+    #         parse_expr(str(ay).replace("t_0", "x"))
+    #     )
+    #
+    #     aeqs = solve(aeq, x)
+    #
+    #     if len(aeqs) > 0:
+    #         A = int(aeqs[0])
+    #
+    #     aa = parse_expr(str(ay).replace("t_0", "x")).subs("x", A)
+    #     print(aa)
+    # else:
+    #     aa = 0
+    #
+    # if len(sols_y) > 0:
+    #     bx, by = sols_y[0]
+    #
+    #     beq = Eq(
+    #         parse_expr(str(bx).replace("t_0", "x")),
+    #         parse_expr(str(by).replace("t_0", "x"))
+    #     )
+    #
+    #     beqs = solve(beq, x)
+    #
+    #     if len(beqs) > 0:
+    #         B = int(beqs[0])
+    #
+    #
+    #     bb = parse_expr(str(bx).replace("t_0", "x")).subs("x", B)
+    #     print(bb)
+    # else:
+    #     bb = 0
+    #
+    # print("*"*62)
+    # return aa, bb
 
 def first(input):
     C = []
@@ -68,11 +108,14 @@ def first(input):
             c["P"]["y"] = py
             C.append(Box(c))
             c = {}
-    print()
+
     s = 0
     for cmd in C:
-        s += solve(cmd)
+        a, b = msolve(cmd)
+        s += (3*a + b)
+
     print(s)
+
 
 
 def second(input):
@@ -105,3 +148,8 @@ Prize: X=18641, Y=10279
 
     #second(data)
     first(data)
+
+# 2
+# 133212165498122 too high
+#  62613705485587 too low
+#  61411131111473 too low
